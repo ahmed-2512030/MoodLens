@@ -1,0 +1,8 @@
+# Training / evaluation dependencies. Kept separate from requirements.txt so the
+# API runtime image stays slim — you only install these when running the ML
+# scripts (locally for eval, or on Colab for fine-tuning).
+-r requirements.txt
+datasets==3.2.0
+scikit-learn==1.6.0
+matplotlib==3.10.0
+accelerate==1.2.1
