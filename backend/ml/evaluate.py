@@ -45,8 +45,17 @@ def _predict(model, tokenizer, texts, device, label_space, batch_size=32):
                 scored = {id2label[i]: p for i, p in enumerate(row)}
                 ekman = to_ekman(scored)
                 preds.append(ekman_index[max(ekman, key=ekman.get)])
+        elif label_space == "native":
+            # Model already predicts Ekman names but in ITS OWN label order
+            # (e.g. j-hartmann). Argmax, then remap via id2label name -> our index.
+            id2label = model.config.id2label
+            for idx in logits.argmax(dim=-1).cpu().tolist():
+                name = id2label[idx].lower()
+                if name not in ekman_index:
+                    raise ValueError(f"model label '{name}' not in EKMAN {EKMAN}")
+                preds.append(ekman_index[name])
         else:
-            # 7 single-label outputs -> argmax directly.
+            # 7 single-label outputs already in our EKMAN order -> argmax directly.
             preds.extend(logits.argmax(dim=-1).cpu().tolist())
 
         print(f"  scored {min(start + batch_size, len(texts))}/{len(texts)}", end="\r")
@@ -57,7 +66,9 @@ def _predict(model, tokenizer, texts, device, label_space, batch_size=32):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, help="HF id or local path")
-    ap.add_argument("--label-space", choices=["goemotions", "ekman"], required=True)
+    ap.add_argument(
+        "--label-space", choices=["goemotions", "ekman", "native"], required=True
+    )
     ap.add_argument("--split", default="test")
     ap.add_argument("--out-dir", default="metrics")
     args = ap.parse_args()

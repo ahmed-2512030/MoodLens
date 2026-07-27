@@ -22,9 +22,12 @@ MoodLens/
 └── docker-compose.yml
 ```
 
-**Model:** `bhadresh-savani/bert-base-go-emotion` — BERT fine-tuned on
-GoEmotions (28 labels), aggregated to the 6 Ekman classes (joy, anger, sadness,
-fear, surprise, disgust) + neutral. Change via the `MODEL_NAME` env var.
+**Model:** an **ensemble** of two GoEmotions-trained transformers —
+`bhadresh-savani/bert-base-go-emotion` + `SamLowe/roberta-base-go_emotions` — whose
+28-label outputs are aggregated to the 6 Ekman classes (joy, anger, sadness, fear,
+surprise, disgust) + neutral and averaged. The ensemble beats either model alone
+(macro-F1 0.673 vs 0.663; see `PROJECT_REPORT.md`). Change via the `MODEL_NAMES` env
+var — pass a single-model JSON list for lower latency.
 
 ## API
 

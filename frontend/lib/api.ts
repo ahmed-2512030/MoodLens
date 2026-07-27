@@ -66,3 +66,20 @@ export async function uploadFile(file: File): Promise<BatchResponse> {
   if (!res.ok) throw new Error((await res.json()).detail ?? "Upload failed");
   return res.json();
 }
+
+// POST the batch back to the backend, which renders a PDF and streams it down.
+export async function downloadReport(batch: BatchResponse): Promise<void> {
+  const res = await fetch("/api/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(batch),
+  });
+  if (!res.ok) throw new Error("Report generation failed");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "moodlens-report.pdf";
+  a.click();
+  URL.revokeObjectURL(url);
+}

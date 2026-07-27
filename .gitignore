@@ -23,6 +23,9 @@ backend/models/
 backend/metrics/
 backend/ml/checkpoints/
 
+# Local-only docs
+PROJECT_REPORT.md
+
 # OS / editor
 .DS_Store
 Thumbs.db
