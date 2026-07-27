@@ -8,6 +8,18 @@ disgust. `neutral` is kept as a 7th bucket so probabilities always sum to 1.
 # The six emotions the project reports on, plus neutral.
 EKMAN = ["joy", "anger", "sadness", "fear", "surprise", "disgust", "neutral"]
 
+# Per-emotion colours — kept in sync with the frontend (lib/api.ts EMOTION_COLORS)
+# so the PDF report and the web dashboard read as one visual system.
+EMOTION_COLORS: dict[str, str] = {
+    "joy": "#f59e0b",
+    "anger": "#ef4444",
+    "sadness": "#3b82f6",
+    "fear": "#8b5cf6",
+    "surprise": "#ec4899",
+    "disgust": "#10b981",
+    "neutral": "#94a3b8",
+}
+
 GOEMOTIONS_TO_EKMAN: dict[str, str] = {
     # joy
     "amusement": "joy",
