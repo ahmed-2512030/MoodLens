@@ -25,6 +25,8 @@ backend/ml/checkpoints/
 
 # Local-only docs
 PROJECT_REPORT.md
+MoodLens_W13_Benchmark_Report.docx
+MoodLens_W13_Comparison.docx
 
 # OS / editor
 .DS_Store

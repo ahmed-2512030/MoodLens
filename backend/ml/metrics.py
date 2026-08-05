@@ -17,7 +17,7 @@ from sklearn.metrics import (
 )
 
 
-def compute_metrics(y_true, y_pred, labels: list[str]) -> dict:
+def compute_metrics(y_true, y_pred, labels: list[str], label_ids=None) -> dict:
     """Headline numbers that answer the research question.
 
     - accuracy: overall fraction correct.
@@ -25,13 +25,25 @@ def compute_metrics(y_true, y_pred, labels: list[str]) -> dict:
       the honest metric under class imbalance — a model that only predicts the
       majority class scores high accuracy but low macro-F1.
     - per_class: precision/recall/F1 for every emotion (great results-table).
+
+    `label_ids` restricts scoring to a subset of classes (their integer ids). This
+    is needed for external benchmarks that only cover some Ekman emotions — macro-F1
+    is then averaged over the classes the dataset actually uses, not all seven.
     """
+    if label_ids is None:
+        label_ids = list(range(len(labels)))
+    names = [labels[i] for i in label_ids]
     return {
         "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
-        "macro_f1": round(float(f1_score(y_true, y_pred, average="macro", zero_division=0)), 4),
-        "weighted_f1": round(float(f1_score(y_true, y_pred, average="weighted", zero_division=0)), 4),
+        "macro_f1": round(
+            float(f1_score(y_true, y_pred, labels=label_ids, average="macro", zero_division=0)), 4
+        ),
+        "weighted_f1": round(
+            float(f1_score(y_true, y_pred, labels=label_ids, average="weighted", zero_division=0)), 4
+        ),
         "per_class": classification_report(
-            y_true, y_pred, target_names=labels, output_dict=True, zero_division=0
+            y_true, y_pred, labels=label_ids, target_names=names,
+            output_dict=True, zero_division=0,
         ),
     }
 
@@ -43,13 +55,19 @@ def save_metrics(metrics: dict, path: str | Path) -> None:
     print(f"Saved metrics -> {path}")
 
 
-def save_confusion_matrix(y_true, y_pred, labels: list[str], path: str | Path) -> None:
+def save_confusion_matrix(y_true, y_pred, labels: list[str], path: str | Path, label_ids=None) -> None:
     """Confusion matrix heatmap: rows = true emotion, cols = predicted. The
     diagonal is correct predictions; off-diagonal shows which emotions the model
-    confuses (e.g. fear mistaken for surprise). Strong dissertation figure."""
+    confuses (e.g. fear mistaken for surprise). Strong dissertation figure.
+
+    `label_ids` restricts the matrix to a subset of classes (for external
+    benchmarks that don't cover all seven Ekman emotions)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    cm = confusion_matrix(y_true, y_pred, labels=list(range(len(labels))))
+    if label_ids is None:
+        label_ids = list(range(len(labels)))
+    labels = [labels[i] for i in label_ids]
+    cm = confusion_matrix(y_true, y_pred, labels=label_ids)
 
     fig, ax = plt.subplots(figsize=(7, 6))
     im = ax.imshow(cm, cmap="Blues")
