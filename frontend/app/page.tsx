@@ -181,6 +181,23 @@ export default function Home() {
                   </div>
                 ))}
             </div>
+
+            {single.arc && single.arc.length > 1 && (
+              <div className="mt-8">
+                <h3 className="mb-1 text-sm font-medium">
+                  Emotional arc across this document
+                </h3>
+                <p className="mb-2 text-sm text-slate-500">
+                  {single.chunk_count} sections analysed
+                  {single.truncated_chunks
+                    ? " (first 40 shown — document was longer)"
+                    : ""}
+                  . Each point is one section; lines show how emotion shifts
+                  through the text.
+                </p>
+                <TrendChart data={single.arc} />
+              </div>
+            )}
           </div>
         )}
       </section>

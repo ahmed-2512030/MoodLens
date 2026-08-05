@@ -2,7 +2,9 @@ from pydantic import BaseModel, Field
 
 
 class AnalyzeRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=5000)
+    # Long text is chunked past the 512-token limit (see classifier.classify_document),
+    # so the cap is a DoS guard, not an analysis limit. ~50k chars ≈ the 40-chunk ceiling.
+    text: str = Field(..., min_length=1, max_length=50000)
 
 
 class FineGrained(BaseModel):
@@ -16,8 +18,25 @@ class EmotionResult(BaseModel):
     fine_grained: list[FineGrained]
 
 
+class ArcPoint(BaseModel):
+    """One chunk's Ekman vector (0-100 scale). Shaped to match the frontend
+    TrendPoint so the per-document arc drops straight into the trend chart."""
+    bin: str
+    index: int
+    joy: float
+    anger: float
+    sadness: float
+    fear: float
+    surprise: float
+    disgust: float
+    neutral: float
+
+
 class AnalyzeResponse(EmotionResult):
     text: str
+    chunk_count: int = 1
+    arc: list[ArcPoint] | None = None  # per-chunk trajectory; null when single-chunk
+    truncated_chunks: bool = False
 
 
 class BatchItem(EmotionResult):

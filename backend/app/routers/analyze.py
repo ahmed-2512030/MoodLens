@@ -8,5 +8,7 @@ router = APIRouter(tags=["analyze"])
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
-    result = get_classifier().classify([req.text])[0]
+    # classify_document chunks long text past the 512-token limit and returns a
+    # per-chunk arc; short text stays a single chunk (identical to classify()).
+    result = get_classifier().classify_document(req.text)
     return AnalyzeResponse(text=req.text, **result)

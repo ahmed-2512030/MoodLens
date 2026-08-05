@@ -36,8 +36,10 @@ class _Member:
 
     @torch.inference_mode()
     def raw_scores(self, texts: list[str]) -> list[dict[str, float]]:
+        # 512 = the model's hard position-embedding ceiling (BERT/RoBERTa). Text
+        # beyond this is still truncated — a single forward pass cannot see more.
         enc = self.tokenizer(
-            texts, padding=True, truncation=True, max_length=256, return_tensors="pt"
+            texts, padding=True, truncation=True, max_length=512, return_tensors="pt"
         ).to(self.device)
         logits = self.model(**enc).logits
         # GoEmotions is multi-label -> sigmoid. Softmax would force a single
@@ -99,6 +101,74 @@ class EmotionClassifier:
                 }
             )
         return results
+
+    def classify_document(
+        self, text: str, max_tokens: int = 500, max_chunks: int = 40
+    ) -> dict:
+        """Analyse text of any length by chunking past the 512-token limit.
+
+        Returns the same shape as one `classify()` result, plus:
+        - `chunk_count`: number of chunks scored (1 for short text).
+        - `arc`: per-chunk Ekman vectors (0-100 scale) — the within-document
+          emotional trajectory that feeds the frontend trend chart. None if one chunk.
+        - `truncated_chunks`: True if the document exceeded `max_chunks` and the tail
+          was dropped.
+
+        Short text is a single chunk, so the result is byte-identical to
+        `classify([text])[0]` — no behaviour change for normal input or benchmarks.
+        """
+        from app.services.chunking import split_into_chunks
+
+        chunks = split_into_chunks(text, self.members[0].tokenizer, max_tokens=max_tokens)
+        truncated = len(chunks) > max_chunks
+        if truncated:
+            chunks = chunks[:max_chunks]
+
+        results = self.classify([c["text"] for c in chunks])
+
+        if len(results) == 1:  # short text — preserve exact single-analysis behaviour
+            return {**results[0], "chunk_count": 1, "arc": None, "truncated_chunks": False}
+
+        # Headline = token-length-weighted mean of the per-chunk Ekman vectors, so
+        # longer chunks count proportionally more toward the document's overall mood.
+        weights = [max(c["n_tokens"], 1) for c in chunks]
+        wsum = sum(weights) or 1.0
+        emo = {e: 0.0 for e in EKMAN}
+        fine_sum: defaultdict[str, float] = defaultdict(float)
+        for r, w in zip(results, weights):
+            for e in EKMAN:
+                emo[e] += r["emotions"][e] * w
+            for f in r["fine_grained"]:
+                fine_sum[f["label"]] += f["score"] * w
+
+        emo_avg = {e: emo[e] / wsum for e in EKMAN}
+        total = sum(emo_avg.values()) or 1.0
+        emo_norm = {e: emo_avg[e] / total for e in EKMAN}
+        top_fine = sorted(
+            ((lbl, s / wsum) for lbl, s in fine_sum.items()),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )
+
+        # Arc: one point per chunk, shaped exactly as the frontend TrendPoint
+        # (bin label = char span, values on the 0-100 % scale).
+        arc = []
+        for idx, (r, c) in enumerate(zip(results, chunks)):
+            point = {"bin": f"{c['start'] + 1}–{c['end']}", "index": idx}
+            for e in EKMAN:
+                point[e] = round(r["emotions"][e] * 100, 1)
+            arc.append(point)
+
+        return {
+            "dominant": max(emo_norm, key=emo_norm.get),
+            "emotions": {e: round(emo_norm[e], 4) for e in EKMAN},
+            "fine_grained": [
+                {"label": lbl, "score": round(s, 4)} for lbl, s in top_fine[: settings.top_k]
+            ],
+            "chunk_count": len(chunks),
+            "arc": arc,
+            "truncated_chunks": truncated,
+        }
 
 
 # Set by the FastAPI lifespan on startup.
