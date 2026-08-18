@@ -1,11 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
-    // Proxy API calls to the FastAPI backend so the frontend uses same-origin
-    // /api paths in the browser (no CORS in production).
-    const backend = process.env.BACKEND_URL || "http://localhost:8000";
-    return [{ source: "/api/:path*", destination: `${backend}/:path*` }];
-  },
+  // API calls to /api/* are proxied to the FastAPI backend by the catch-all
+  // Route Handler at app/api/[...path]/route.ts (not a rewrite). The route
+  // handler disables socket timeouts so long ML jobs — e.g. a 5,000-row upload
+  // that runs for minutes — aren't reset mid-flight. See that file for details.
 };
 
 export default nextConfig;
